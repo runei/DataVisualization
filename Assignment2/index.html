@@ -162,6 +162,22 @@ function brush() {
       return extents[i][0] <= d[p] && d[p] <= extents[i][1];
     }) ? null : "none";
   });
+  console.log(getSelected());
+}
+
+function getSelected() {
+  var actives = dimensions.filter(function(p) { return !y[p].brush.empty(); }),
+      extents = actives.map(function(p) { return y[p].brush.extent(); }),
+      result = [];
+      foreground.style("display", function(d) {
+        return actives.every(function(p, i) {
+          if (extents[i][0] <= d[p] && d[p] <= extents[i][1]) {
+            result.push(d[p]);
+          }
+          return extents[i][0] <= d[p] && d[p] <= extents[i][1];
+        })  ? null : "none";
+      });
+      return result;
 }
 
 </script>
