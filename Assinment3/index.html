@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Assignment 3</title>
+</head>
+<body>
+    <!--By Leonardo Invernizzi and Soorya M-->
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <!-- <script src="d3.v5.min.js"></script> -->
+    <script src="https://d3js.org/d3-hierarchy.v1.min.js"></script>
+
+    <style>
+        body{
+            background-color: rgba(0, 0, 0, 0.05);
+            font-family: Arial;
+        }
+        .graphTitle{
+
+            font-size: 16px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .graph-container{
+            margin: 5px;
+            background-color: white;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .graph1{
+            margin: 0 auto;
+            /*border: 1px solid black;*/
+        }
+        .tooltip{
+            display: none;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 3px;
+            padding: 5px;
+            color: white;
+        }
+        .arcInfoContainer{
+            margin: 0 auto;
+        }
+        .arcInfo{
+            width: 60%;
+            margin: 0 auto;
+            margin-left: 30%;
+        }
+
+        /*GRAPH 2*/
+        .node path {
+          fill: #ccc;
+  stroke: #333;
+  stroke-width: 1px;
+        }
+
+        .node text {
+          font: 11px sans-serif;
+        }
+
+        .node--internal circle {
+          fill: blue;
+          border-color: black
+        }
+
+        .node--internal text {
+          text-shadow: 0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff;
+        }
+
+        .link {
+          fill: none;
+          stroke: #B0C4DE;
+          stroke-opacity: 0.4;
+          stroke-width: 3px;
+        }
+    </style>
+
+    <!--SUNBURST GRAPH-->
+    <div class="graph-1-container graph-container">
+        <p class="graphTitle">Sunburst Graph</p>
+        <div class="graph-1 graph"></div>
+        <div class="arcInfoContainer"><div class="arcInfo"></div></div>
+        <div class="tooltip"></div>
+    </div>
+
+
+    <!--THE OTHER ONE-->
+    <div class="graph-2 graph-container">
+        <p class="graphTitle">Node Link Graph</p>
+        <!--ADD YOU STUFF HERE-->
+    </div>
+
+    <!--LINK TO DATA-->
+    <script>
+        var datalink = "https://imld.de/docs/lehre/ws_18-19/data-vis/data/web-vis-tools.json";
+        function clog(data){
+            console.log(data);
+        }
+    </script>
+
+    <!--SCRIPT BLOCK FOR SUNBURST AKA GRAPH 1-->
+    <script>
+        var jsonData;
+        var width = 100+"%", height = 500;
+        var graph1Selector =
+            d3.select(".graph-1")
+                .append("svg").attr("width", width).attr("height", height);
+        var graph1OverlaySelector =
+            d3.select(".graph-1-overlay")
+                .append("svg").attr("width", width).attr("height", height);
+
+        var arcD = [
+            // {
+            //     innerRadius: 40,
+            //     outerRadius: 70,
+            //     startAngle: 0,
+            //     endAngle: 45,
+            //     color: "blue"
+            // }
+        ];
+        function getRandomColor() {
+            var letters = '0123456789ABCDEF';
+            var color = '#';
+            for (var i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        // Returns a JSON object with attributes for a new arc
+        function returnNewArcJSONObject(parent=null, arcName=null, innerRadius, outerRadius, startAngle, endAngle, arcData, color="red"){
+            return {[arcName]: {
+                parent: parent,
+                innerRadius: innerRadius,
+                outerRadius: outerRadius,
+                startAngle: startAngle,
+                endAngle: endAngle,
+                arcData: arcData,
+                color: color
+            }};
+        }
+
+        // For making an arc
+        var arc = d3.arc()
+            .innerRadius(function(d){return d3.values(d)[0].innerRadius})
+            .outerRadius(function(d){return d3.values(d)[0].outerRadius})
+            .startAngle(function(d){return ((d3.values(d)[0].startAngle)*Math.PI/180)})
+            .endAngle(function(d){return ((d3.values(d)[0].endAngle)*Math.PI/180)});
+
+        d3.json(datalink).then(data => {
+            jsonData = data;
+            var root = d3.hierarchy(data);
+            var descendants = root.descendants();
+            var parentName;
+            var arcName;
+            var innerRadius;
+            var outerRadius;
+            var startAngle=0;
+            var endAngle;
+            var stepSize;
+            var arcWidth = 40;
+            var baseArcColors = d3.schemeSet3;
+
+            for(var i=0; i<descendants.length; i++){
+                if(descendants[i].children !== undefined){
+                    var noOfChildren = descendants[i].children.length;
+                    try{
+                        parentName = descendants[i].parent.data.name;
+                    }catch(err){
+                        parentName = null;
+                    }
+                    innerRadius = (descendants[i].depth+1)*arcWidth;
+                    outerRadius = innerRadius+arcWidth;
+
+                    if(parentName === null){
+                        startAngle = 0;
+                        stepSize = 360/noOfChildren;
+                    }
+                    else{
+                        var packedAngles = returnParentAngles(descendants[i].data.name);
+                        startAngle = packedAngles[0];
+                        stepSize = (packedAngles[1]-packedAngles[0])/noOfChildren;
+                    }
+                    endAngle = startAngle+stepSize;
+                    color = getRandomColor();
+                    for(var j=0; j<noOfChildren; j++){
+                        var newObj = returnNewArcJSONObject(
+                            descendants[i].data.name,
+                            descendants[i].children[j].data.name,
+                            innerRadius, outerRadius,
+                            startAngle,
+                            endAngle,
+                            descendants[i].children[j].data,
+                            color+"95",
+                        );
+                        arcD.push(newObj);
+                        startAngle = endAngle;
+                        endAngle += stepSize;
+                    }
+                }
+            }
+            function returnParentAngles(arcName) {
+                var startAngle, endAngle;
+                arcD.map(x => {
+                    if (Object.keys(x)[0] === arcName) {
+                        startAngle = x[arcName].startAngle;
+                        endAngle = x[arcName].endAngle;
+                    }
+                });
+                return [startAngle, endAngle];
+            }
+
+            // FOR HIGLIGHTING ARCS TILL THE ROOT
+            var trackTillRootNodes = [];
+            function trackTillRoot(arcName){
+                arcD.map((x, index) => {
+                    if(Object.keys(x)[0] === arcName){
+                        var node = Object.values(x)[0];
+                        trackTillRootNodes.push([x, index]);
+                        if(node.parent !== null){
+                            trackTillRoot(node.parent);
+                        }
+                    }
+                });
+
+                return trackTillRootNodes;
+            }
+
+
+            // ARC CREATION
+            graph1Selector
+                .selectAll("path")
+                .data(arcD)
+                .enter()
+                .append("path")
+                .attr("d", arc)
+                .attr("arcKeyVal", function(d, i){return i})
+                .attr("transform", `translate(${window.innerWidth/2}, ${height/2})`)
+                .attr("fill", function(d){return d3.values(d)[0].color})
+                .attr("stroke", "white")
+                .attr("stroke-width", "5px");
+
+            // MOUSE EVENTS WHICH HAPPEN WHILE HOVERING OVER ARCS
+            graph1Selector
+                .selectAll("path")
+                .data(arcD)
+                .on("mousemove", function(d){
+                    trackTillRootNodes = [];
+
+                    // TOOLTIP CREATION
+                    var tooltip = d3.select(".tooltip");
+                    tooltip.html("Name: "+d3.keys(d)[0]+"<br/>"
+                        +"Parent: "+d3.values(d)[0].parent)
+                        .style('display', "block")
+                        .style("left", d3.event.clientX+10+"px")
+                        .style("top", d3.event.clientY+10+"px");
+                    // console.log("Name = ", d3.keys(d)[0], "\nParent = ", d3.values(d)[0].parent);
+
+                    //TO CREATE A OVERLAY FROM ROOT TILL THE FOCUSED NODE
+                    trackTillRoot(d3.keys(d)[0]);
+                    createOverlay(trackTillRootNodes);
+                })
+                .on("mouseout", function(){
+                    var tooltip = d3.select(".tooltip");
+                    tooltip.style("display", "none");
+                    removeOverlay(trackTillRootNodes);
+                    // document.querySelector(".arcInfo").style.display = "None";
+                });
+
+            // RENDERING A PATH FROM ROOT TO ARC IN FOCUS
+            function createOverlay(data){
+                document.querySelector(".arcInfo").style.display = "block";
+                showInfo(data[0][0]);
+                data.map(d => {
+                    document.querySelector(".graph-1 path[arcKeyVal='"+d[1]+"']")
+                        .setAttribute("fill", "blue");
+                });
+
+            }
+
+            // REMOVING THE RENDERED PATH FROM ROOT TO ARC IN FOCUS
+            function removeOverlay(data){
+                data.map(d => {
+                    document.querySelector(".graph-1 path[arcKeyVal='"+d[1]+"']")
+                        .setAttribute("fill", d3.values(d[0])[0].color);
+                })
+
+            }
+
+            // SHOWING INFO OF THE ARC IN FOCUS
+            function showInfo(data){
+                var arcInfo = document.querySelector(".arcInfo");
+                var info = "<b>Name:</b> "+d3.keys(data);
+                var values = d3.values(data)[0].arcData;
+                for(var q=1; q<d3.values(values).length; q++){
+                    if(d3.keys(values)[q] !== "children")
+                        info += "<br><b>"+d3.keys(values)[q]+":</b> "+d3.values(values)[q];
+                }
+
+                arcInfo.innerHTML = info;
+            }
+            clog(arcD);
+        });
+    </script>
+
+    <script>
+
+var radius = 960 / 2;
+var width2 = radius * 2,
+    height2 = radius * 2 - 150;
+
+var tree = d3.tree()
+    .size([360, radius - 120])
+    .separation(function(a, b) { return (a.parent == b.parent ? 1 : 2) / a.depth; });
+
+var svg = d3.select(".graph-2").append("svg")
+    .attr("width", width)
+    .attr("height", height2)
+    .call(d3.zoom().on("zoom", function () {
+              svg.attr("transform", d3.event.transform)
+          }))
+  .append("g")
+    .attr("transform", "translate(" + (width2 / 2) + "," + (height2 / 2) + ")");
+
+d3.json(datalink).then(data => {
+    jsonData = data;
+    var root = d3.hierarchy(data);
+    tree(root);
+
+    var link = svg.selectAll(".link")
+      .data(root.descendants().slice(1))
+    .enter().append("path")
+      .attr("class", "link")
+      .attr("d", function(d) {
+        return "M" + project(d.x, d.y)
+            + "C" + project(d.x, (d.y + d.parent.y) / 2)
+            + " " + project(d.parent.x, (d.y + d.parent.y) / 2)
+            + " " + project(d.parent.x, d.parent.y);
+      });
+
+      var node = svg.selectAll(".node")
+          .data(root.descendants())
+        .enter().append("g")
+          .attr("class", function(d) { return "node" + (d.children ? " node--internal" : " node--leaf"); })
+          .attr("transform", function(d) { return "translate(" + project(d.x, d.y) + ")"; });
+
+      // node.append("circle")
+          // .attr("r", 4);
+
+
+
+  var circle = node.append("path")
+      .attr("d", d3.symbol()
+        .size(50)
+        .type(function(d){
+            if (d.data.free)
+            {
+                return d3.symbolStar;
+            }
+            else
+            {
+                return d3.symbolDiamond;
+            }
+        }))
+      .style("fill",  function(d) {
+          if (!d.data.stackoverflow)
+            {
+                return "FFFFFF";
+            }
+            else
+            {
+                var max_stck_over = 15000;
+                var norm = 255 - Math.ceil(Math.min(d.data.stackoverflow, max_stck_over) / max_stck_over * 255);
+                console.log -(norm);
+                hexString = norm.toString(16);
+                return hexString + hexString + hexString;
+            }
+        })
+/*
+    .style(tocolor, function(d) {
+    if (isNumber(d.score) && d.score>=0) return color(d.score);
+    else return default_node_color; })
+    //.attr("r", function(d) { return size(d.size)||nominal_base_node_size; })
+    .style("stroke-width", nominal_stroke)
+    .style(towhite, "white");
+*/
+
+      node.append("text")
+          .attr("dy", ".31em")
+          .attr("dx", function(d) { return d.x < 180 === !d.children ? 6 : -6; })
+          .style("text-anchor", function(d) { return d.x < 180 === !d.children ? "start" : "end"; })
+          .attr("transform", function(d) { return "rotate(" + (d.x < 180 ? d.x - 90 : d.x + 90) + ")"; })
+          .text(function(d) { 
+            return d.data.name;// + "   " + d.data.description; 
+        });
+
+    function project(x, y) {
+        // var nx = x * 2, nx = y * 2;
+      var angle = (x - 90) / 180 * Math.PI, radius = y;
+      return [radius * Math.cos(angle), radius * Math.sin(angle)];
+    }
+
+  });
+    </script>
+</body>
+</html>
