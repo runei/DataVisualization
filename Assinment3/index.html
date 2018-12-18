@@ -308,17 +308,34 @@
 
 var radius = 960 / 2;
 var width2 = radius * 2,
-    height2 = radius * 2 - 150;
+    height2 = radius * 2 - 100;
 
 var tree = d3.tree()
-    .size([360, radius - 120])
+    .size([360, radius])
     .separation(function(a, b) { return (a.parent == b.parent ? 1 : 2) / a.depth; });
 
 var svg = d3.select(".graph-2").append("svg")
     .attr("width", width)
     .attr("height", height2)
-    .call(d3.zoom().on("zoom", function () {
+    .call(d3.zoom()
+        .scaleExtent([1, 2])
+        .on("zoom", function () {
               svg.attr("transform", d3.event.transform)
+              // console.log(d3.event.transform.k);
+              if (d3.event.transform.k >= 1.5){
+                d3.selectAll("#label").style("opacity", 1);
+              }
+              else
+              {
+                d3.selectAll("#label").style("opacity", 0);
+              }
+              if (d3.event.transform.k == 2){
+                d3.selectAll("#descript").style("opacity", 1);
+              }
+              else
+              {
+                d3.selectAll("#descript").style("opacity", 0);
+              }
           }))
   .append("g")
     .attr("transform", "translate(" + (width2 / 2) + "," + (height2 / 2) + ")");
@@ -387,13 +404,55 @@ d3.json(datalink).then(data => {
 */
 
       node.append("text")
-          .attr("dy", ".31em")
+          .attr("dy", "0em")
           .attr("dx", function(d) { return d.x < 180 === !d.children ? 6 : -6; })
           .style("text-anchor", function(d) { return d.x < 180 === !d.children ? "start" : "end"; })
           .attr("transform", function(d) { return "rotate(" + (d.x < 180 ? d.x - 90 : d.x + 90) + ")"; })
-          .text(function(d) { 
-            return d.data.name;// + "   " + d.data.description; 
+          .attr("id", "label")
+          .style("opacity", 0)
+          .text(function(d) {
+            return d.data.name;// + "   " + d.data.description;
         });
+
+        node.append("text")
+          .attr("dy", "1em")
+          .attr("dx", function(d) { return d.x < 180 === !d.children ? 6 : -6; })
+          .style("text-anchor", function(d) { return d.x < 180 === !d.children ? "start" : "end"; })
+          .attr("transform", function(d) { return "rotate(" + (d.x < 180 ? d.x - 90 : d.x + 90) + ")"; })
+          // .attr("transform", function(d) { return "translate(" + (d.x < 180 ? d.x - 20 : d.x + 20) + ")"; })
+          .attr("id", "descript")
+          .style("font-size", 8)
+          .style("opacity", 0)
+          .text(function(d) {
+            return d.data.description;// + "   " + d.data.description;
+        })
+          .call(wrap, 80);
+
+          // svg.selectAll("descript").call(wrap, 10);
+
+    function wrap(text, width) {
+      text.each(function() {
+        var text = d3.select(this),
+            words = text.text().split(/\s+/).reverse(),
+            word,
+            line = [],
+            lineNumber = 0,
+            lineHeight = 0, // ems
+            y = text.attr("y"),
+            dy = parseFloat(text.attr("dy")),
+            tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+        while (word = words.pop()) {
+          line.push(word);
+          tspan.text(line.join(" "));
+          if (tspan.node().getComputedTextLength() > width) {
+            line.pop();
+            tspan.text(line.join(" "));
+            line = [word];
+            tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+          }
+        }
+      });
+    }
 
     function project(x, y) {
         // var nx = x * 2, nx = y * 2;
